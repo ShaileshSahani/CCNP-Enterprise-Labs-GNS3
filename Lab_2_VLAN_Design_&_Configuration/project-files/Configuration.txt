@@ -1,0 +1,333 @@
+Lab-02: VLAN Design & Configuration
+🎯 Objective
+Master VLAN creation, port assignment, access/trunk modes, and inter-VLAN connectivity using Layer 2 switching. Understand VLAN segmentation for enterprise network security and performance optimization.
+
+📐 Topology (Minimal - 3 Nodes)
+text
+                    Gi0/1 - Trunk              Gi0/1 - Trunk
+   [VPCS-PC1]───────[SW1]─────────────────────[SW2]───────[VPCS-PC2]
+    VLAN 10         viosl2     Gi0/2           viosl2     VLAN 20
+                    │                                        │
+                    │                                        │
+                    Gi0/2 - Access VLAN 20     Gi0/2 - Access VLAN 10
+                    │                                        │
+              [VPCS-PC3]                              [VPCS-PC4]
+               VLAN 20                                 VLAN 10
+Device	Image	RAM	Role
+SW1	viosl2	512MB	Distribution Switch
+SW2	viosl2	512MB	Access Switch
+PC1	VPCS	5MB	VLAN 10 Endpoint
+PC2	VPCS	5MB	VLAN 20 Endpoint
+PC3	VPCS	5MB	VLAN 20 Endpoint
+PC4	VPCS	5MB	VLAN 10 Endpoint
+Total RAM Usage: ~1GB ✅
+
+📊 IP Addressing Scheme
+VLAN Assignments:
+
+VLAN 10: Engineering (10.1.10.0/24)
+
+VLAN 20: Marketing (10.1.20.0/24)
+
+Device	Interface	IP Address	Subnet Mask	VLAN
+SW1	VLAN 10 SVI	10.1.10.1	255.255.255.0	VLAN 10
+SW1	VLAN 20 SVI	10.1.20.1	255.255.255.0	VLAN 20
+SW1	Gi0/1	Trunk	-	All VLANs
+SW1	Gi0/2	Access VLAN 20	-	VLAN 20
+SW2	VLAN 10 SVI	10.1.10.2	255.255.255.0	VLAN 10
+SW2	VLAN 20 SVI	10.1.20.2	255.255.255.0	VLAN 20
+SW2	Gi0/1	Trunk	-	All VLANs
+SW2	Gi0/2	Access VLAN 10	-	VLAN 10
+PC1	eth0	10.1.10.10	255.255.255.0	VLAN 10
+PC2	eth0	10.1.20.10	255.255.255.0	VLAN 20
+PC3	eth0	10.1.20.20	255.255.255.0	VLAN 20
+PC4	eth0	10.1.10.20	255.255.255.0	VLAN 10
+Device	Gateway
+PC1	10.1.10.1
+PC2	10.1.20.1
+PC3	10.1.20.1
+PC4	10.1.10.1
+⚙️ Complete Configuration
+SW1 Configuration (Distribution Switch)
+text
+enable
+configure terminal
+hostname SW1
+
+vlan 10
+ name Engineering
+vlan 20
+ name Marketing
+
+interface GigabitEthernet0/1
+ description TRUNK-TO-SW2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20
+ no shutdown
+
+interface GigabitEthernet0/2
+ description ACCESS-PC3-VLAN20
+ switchport mode access
+ switchport access vlan 20
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security violation shutdown
+ no shutdown
+
+interface Vlan10
+ ip address 10.1.10.1 255.255.255.0
+ no shutdown
+
+interface Vlan20
+ ip address 10.1.20.1 255.255.255.0
+ no shutdown
+
+ip routing
+
+enable secret cisco123
+line console 0
+ password cisco
+ login
+line vty 0 4
+ password cisco
+ login
+
+end
+write memory
+SW2 Configuration (Access Switch)
+text
+enable
+configure terminal
+hostname SW2
+
+vlan 10
+ name Engineering
+vlan 20
+ name Marketing
+
+interface GigabitEthernet0/1
+ description TRUNK-TO-SW1
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20
+ no shutdown
+
+interface GigabitEthernet0/2
+ description ACCESS-PC1-VLAN10
+ switchport mode access
+ switchport access vlan 10
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security violation shutdown
+ no shutdown
+
+interface Vlan10
+ ip address 10.1.10.2 255.255.255.0
+ no shutdown
+
+interface Vlan20
+ ip address 10.1.20.2 255.255.255.0
+ no shutdown
+
+ip routing
+
+enable secret cisco123
+line console 0
+ password cisco
+ login
+line vty 0 4
+ password cisco
+ login
+
+end
+write memory
+PC Configurations (VPCS)
+PC1 (VLAN 10 - Engineering)
+
+text
+ip 10.1.10.10 255.255.255.0 10.1.10.1
+save
+PC2 (VLAN 20 - Marketing)
+
+text
+ip 10.1.20.10 255.255.255.0 10.1.20.1
+save
+PC3 (VLAN 20 - Marketing)
+
+text
+ip 10.1.20.20 255.255.255.0 10.1.20.1
+save
+PC4 (VLAN 10 - Engineering)
+
+text
+ip 10.1.10.20 255.255.255.0 10.1.10.1
+save
+✅ Verification Commands
+On SW1
+text
+show vlan brief
+show interfaces status
+show interfaces trunk
+show ip interface brief
+show ip route
+show running-config | include vlan
+show mac address-table
+show interfaces GigabitEthernet0/1 switchport
+show interfaces GigabitEthernet0/2 switchport
+show spanning-tree
+show port-security
+On SW2
+text
+show vlan brief
+show interfaces status
+show interfaces trunk
+show ip interface brief
+show ip route
+show running-config | include vlan
+show mac address-table
+show interfaces GigabitEthernet0/1 switchport
+show interfaces GigabitEthernet0/2 switchport
+show spanning-tree
+show port-security
+On PC1 (VPCS)
+text
+show ip
+ping 10.1.10.1
+ping 10.1.10.20
+ping 10.1.20.10
+trace 10.1.20.10
+On PC2 (VPCS)
+text
+show ip
+ping 10.1.20.1
+ping 10.1.20.20
+ping 10.1.10.10
+trace 10.1.10.10
+On PC3 (VPCS)
+text
+show ip
+ping 10.1.20.1
+ping 10.1.20.10
+ping 10.1.10.10
+On PC4 (VPCS)
+text
+show ip
+ping 10.1.10.1
+ping 10.1.10.10
+ping 10.1.20.10
+🔍 Troubleshooting Section
+Issue 1: PC cannot ping gateway
+
+Check	Command	Solution
+VLAN exists?	show vlan brief	Create VLAN
+Port in correct VLAN?	show interfaces status	switchport access vlan X
+SVI enabled?	show ip interface brief	no shutdown on SVI
+IP configured?	show run interface VlanX	Assign IP address
+Issue 2: Trunk not passing traffic
+
+text
+show interfaces trunk
+show interfaces GigabitEthernet0/1 trunk
+show interfaces GigabitEthernet0/1 switchport
+Common solutions:
+
+Ensure both ends in trunk mode
+
+Check allowed VLAN list
+
+Verify encapsulation matches (dot1q)
+
+Check native VLAN matches
+
+Issue 3: Inter-VLAN routing failure
+
+text
+show ip route
+show ip cef
+show interfaces Vlan10
+show interfaces Vlan20
+Issue 4: MAC address learning issues
+
+text
+clear mac address-table dynamic
+show mac address-table count
+show mac address-table aging-time
+🌐 Real-World Use Case
+Enterprise Scenario:
+A mid-sized company with 500+ employees implementing network segmentation:
+
+VLAN 10: Engineering (Development, Testing, Build Servers)
+
+VLAN 20: Marketing (Web Servers, CMS, Design Tools)
+
+VLAN 30: HR (Sensitive Employee Data)
+
+VLAN 40: Finance (Financial Systems)
+
+VLAN 50: Guest WiFi (Internet Only)
+
+Benefits:
+
+Security isolation between departments
+
+Broadcast traffic containment
+
+Easier network management
+
+Quality of Service (QoS) per VLAN
+
+Compliance with data protection regulations
+
+📝 Key Learning Points
+VLAN Fundamentals
+
+Logical segmentation of Layer 2 network
+
+4094 possible VLAN IDs (1-4094)
+
+VLAN 1 is default native VLAN
+
+Port Types
+
+Access Port: One VLAN, untagged frames
+
+Trunk Port: Multiple VLANs, tagged frames
+
+Native VLAN: Untagged frames on trunk
+
+VLAN Trunking Protocol (VTP)
+
+VTP modes: Server, Client, Transparent
+
+VTP pruning for bandwidth optimization
+
+Inter-VLAN Routing Methods
+
+Router-on-a-stick (external router)
+
+SVI on Layer 3 switch
+
+Using physical router interfaces
+
+VLAN Best Practices
+
+Use VLANs 1-1000 for normal usage
+
+Reserve VLANs 1002-1005 for special functions
+
+Enable port-security on access ports
+
+Disable unused ports (shutdown)
+
+Use descriptive VLAN names
+
+🎓 Conclusion
+Concept	Learned
+VLAN Creation	vlan X, name X commands
+Access Ports	switchport mode access + switchport access vlan X
+Trunk Ports	switchport mode trunk + switchport trunk allowed vlan
+SVI Configuration	Interface VLAN X with IP address
+Inter-VLAN Routing	ip routing + SVI configuration
+Port Security	MAC limiting, violation modes
+Verification	show vlan brief, show interfaces trunk, show ip route
